@@ -19,18 +19,8 @@ def app():
             "Furniture Diffusion"
         )
 
-        click_stack = gr.State([[],[]])
-        origin_frame = gr.State(None)
-        Seg_Tracker = gr.State(None)
-
-        current_frame_num = gr.State(None)
-        refine_idx = gr.State(None)
-        frame_num = gr.State(None)
-
-        aot_model = gr.State(None)
-        sam_gap = gr.State(None)
-        points_per_side = gr.State(None)
-        max_obj_num = gr.State(None)
+        # click_state = gr.State([], [])
+        # origin_img = gr.State(None)
 
         with gr.Row():
             with gr.Column():
