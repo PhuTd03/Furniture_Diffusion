@@ -9,6 +9,20 @@ import matplotlib.pyplot as plt
 import json
 import sys
 
+def clean():
+    return ([[],[]]), None, None, ""
+
+def get_meta_from_img_seq(img):
+    if img is not None:
+        return ([[],[]]), None, None, ""
+
+    print("get meta information from img seq")
+    origin_img = cv2.imread(img)
+    origin_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2RGB)
+
+    return origin_img, origin_img, ""
+
+
 
 def app():
 
@@ -23,14 +37,18 @@ def app():
             "Furniture Diffusion"
         )
 
-        # click_state = gr.State([], [])
-        # origin_img = gr.State(None)
+        click_state = gr.State([[], []])
+        origin_img = gr.State(None)
+        segment_img = gr.State(None)
+        prompt_text = gr.State("")
+
+
 
         with gr.Row():
             with gr.Column():
                 with gr.Row():
                     #input image
-                    origin_img = gr.Image(type="filepath", label="Input Image")
+                    input_img = gr.Image(type="filepath", label="Input Image")
 
                     segment_img = gr.Image(type="pil", label="Segmented Image")
 
@@ -39,14 +57,15 @@ def app():
                 with tab_everything:
                     with gr.Row():
                         seg_every_button = gr.Button(label="Segmentation", interactive=True, value="segment everything")
-                        point_mode = gr.Radio(
-                            choices=["Positive"],
-                            label="Point Prompt",
-                            value="Positive",
-                            interactive=True
-                        )
+                        with gr.Column():    
+                            point_mode = gr.Radio(
+                                choices=["Positive"],
+                                label="Point Prompt",
+                                value="Positive",
+                                interactive=True
+                            )
 
-                    every_undo_button = gr.Button(label="Undo", interactive=True, value="undo")
+                            every_undo_button = gr.Button(label="Undo", interactive=True, value="undo")
 
                 tab_click = gr.Tab(label="Click")
                 with tab_click:
@@ -76,8 +95,35 @@ def app():
     #################
     ### Back-end ###
     #################
+    
+    # import img and get the image to the right position
+    input_img.change(
+        fn=get_meta_from_img_seq,
+        inputs=[input_img],
+        outputs=[segment_img, origin_img, prompt_text]
+    )
+
+    # clean the state
+    tab_everything.select(
+        fn=clean,
+        inputs=[],
+        outputs=[click_state, origin_img, segment_img, prompt_text]
+    )
+
+    tab_click.select(
+        fn=clean,
+        inputs=[],
+        outputs=[click_state, origin_img, segment_img, prompt_text]
+    )
+
+    tab_text.select(
+        fn=clean,
+        inputs=[],
+        outputs=[click_state, origin_img, segment_img, prompt_text]
+    )
 
     
+
 
                         
 
