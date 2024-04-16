@@ -24,11 +24,40 @@ def get_meta_from_img_seq(img):
 
     return origin_img, origin_img, ""
 
-# def init_Segment(sam_gap, ):
+def init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame):
+    if origin_frame is None:
+        return None, origin_frame, [[], []], ""
 
+    sam_args["generator_args"]["points_per_side"] = points_per_side
+    segment_args["sam_gap"] = sam_gap
+    segment_args["max_obj_num"] = max_obj_num
+    
+    Segment = Segment(segment_args, sam_args, aot_args)
+    Segment.restart_tracker()
 
+    return Segment, segment_img, [[], []], ""
 
+def undo_click_state_and_refine_seg(Segment, origin_frame, click_state, sam_gap, max_obj_num, points_per_side):
+    if Segment is None:
+        return None, origin_frame, [[], []], ""
 
+def segment_everything(Segment, origin_frame, sam_gap, points_per_side, max_obj_num):
+    if Segment is None:
+        Segment, _, _, _ = init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame)
+
+    print("Segment Everything")
+    frame_idx = 0
+
+    with torch.cuda.amp.autocast():
+        pred_mask = Segment.seg(origin_frame)
+        torch.cuda.empty_cache()
+        gc.collect()
+        Segment.add_reference(origin_frame, pred_mask, frame_idx)
+        Segment.first_frame_mask = pred_mask
+
+    masked_frame = draw_mask(origin_frame.copy(), pred_mask)
+
+    return Seg_Tracker, masked_frame
 
 
 
@@ -134,7 +163,7 @@ def app():
 
                     reset_button = gr.Button(label="Reset", interactive=True, value="reset")
 
-            segment_img = gr.Image(type="pil", label="Segmented Image")
+            segment_img = gr.Image(label="Segmented Image", interactive=True)
 
 
     #################
@@ -149,25 +178,13 @@ def app():
         )
 
         # clean the state
-        tab_everything.select(
+        reset_button.click(
             fn=clean,
             inputs=[],
             outputs=[click_state, origin_img, segment_img, prompt_text]
         )
 
-        tab_click.select(
-            fn=clean,
-            inputs=[],
-            outputs=[click_state, origin_img, segment_img, prompt_text]
-        )
-
-        tab_text.select(
-            fn=clean,
-            inputs=[],
-            outputs=[click_state, origin_img, segment_img, prompt_text]
-        )
-
-        ### Undo button ###
+        ## Undo button
         every_undo_button.click(
             fn=clean,
             inputs=[],
@@ -186,8 +203,35 @@ def app():
             outputs=[click_state, origin_img, segment_img, prompt_text]
         )
 
-        ###init the segment###
+        ## init the segment
+        tab_everything.select(
+            fn=init_Segment,
+            inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
+            outputs=[Segment, segment_img, click_state, prompt_text]
+        )
 
+        tab_click.select(
+            fn=init_Segment,
+            inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
+            outputs=[Segment, segment_img, click_state, prompt_text]
+        )
+
+        tab_text.select(
+            fn=init_Segment,
+            inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
+            outputs=[Segment, segment_img, click_state, prompt_text]
+        )
+
+        # Segment everything
+        seg_every_button.click(
+            fn=segment_everything,
+            inputs=[Segment, origin_img, sam_gap, points_per_side, max_obj_num],
+            outputs=[Segment, segment_img]
+        )
+
+        segment_img.select(
+            
+        )
 
     
 
