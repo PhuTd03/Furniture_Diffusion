@@ -229,9 +229,29 @@ def app():
             outputs=[Segment, segment_img]
         )
 
-        segment_img.select(
-            
-        )
+        # segment_img.select(
+        #     fn=sam_click,
+        #     inputs=[Segment, click_state, segment_img],
+        #     outputs=[segment_img]
+        # )
+
+        reset_button.click(
+            fn=init_SegTracker,
+            inputs=[
+                aot_model,
+                long_term_mem,
+                max_len_long_term,
+                sam_gap,
+                max_obj_num,
+                points_per_side,
+                origin_frame
+            ],
+            outputs=[
+                Seg_Tracker, input_first_frame, click_stack, grounding_caption
+            ],
+            queue=False,
+            show_progress=False
+        ) 
 
     
 
