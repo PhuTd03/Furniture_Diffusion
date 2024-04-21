@@ -11,67 +11,82 @@ import sys
 import cv2
 import gc
 
-from Segment import Segment
+from utils.Segment import Segment
+from utils.seg_anything import draw_mask
+from utils.model_args import sam_args, segment_args
 
 
 def clean():
     return ([[],[]]), None, None, ""
 
 def get_meta_from_img_seq(img):
-    if img is not None:
-        return ([[],[]]), None, None, ""
+    if img is None:
+        print("Input image is None.")
+        return None, None, ""
 
-    print("get meta information from img seq")
-    origin_img = cv2.imread(img)
-    origin_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2RGB)
+    print("Getting meta information from image sequence.")
+    try:
+        origin_img = Image.open(img).convert("RGB")
+        origin_img = origin_img.resize((256, 256))
+    except Exception as e:
+        print("Error loading image:", e)
+        return None, None, "Error loading image."
 
     return origin_img, origin_img, ""
 
-def Segment_add_first_frame(Segment, origin_mask, predicted_mask):
+
+def Segment_add_first_frame(Segment_in, origin_frame, predicted_mask):
     with torch.cuda.amp.autocast():
         # Reset first frame's mask
         frame_idx = 0
-        Segment.restart_tracker()
-        Segment.add_reference(origin_frame, predicted_mask, frame_idx)
-        Segment.first_frame_mask = predicted_mask
+        Segment_in.restart_tracker()
+        Segment_in.add_reference(origin_frame, predicted_mask, frame_idx)
+        Segment_in.first_frame_mask = predicted_mask
     
-    return Segment
+    return Segment_in
+
+def create_placeholder_image():
+    # Create a black image
+    placeholder = np.zeros((256, 256, 3), dtype=np.uint8)
+    # Convert the NumPy array to a PIL Image
+    placeholder = Image.fromarray(placeholder)
+    return placeholder
 
 def init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame):
     if origin_frame is None:
-        return None, origin_frame, [[], []], ""
+        placeholder = create_placeholder_image()
+        return placeholder, origin_frame, [[], []], ""
 
     # reset sam args
     sam_args["generator_args"]["points_per_side"] = points_per_side
     segment_args["sam_gap"] = sam_gap
     segment_args["max_obj_num"] = max_obj_num
     
-    Segment = Object_segmentation(segment_args, sam_args, aot_args)
-    Segment.restart_tracker()
+    Segment_in = Segment(segment_args, sam_args)
 
-    return Segment, segment_img, [[], []], ""
+    return Segment_in, origin_frame, [[], []], ""
 
-def undo_click_state_and_refine_seg(Segment, origin_frame, click_state, sam_gap, max_obj_num, points_per_side):
-    if Segment is None:
+def undo_click_state_and_refine_seg(Segment_in, origin_frame, click_state, sam_gap, max_obj_num, points_per_side):
+    if Segment_in is None:
         return None, origin_frame, [[], []], ""
 
-def segment_everything(Segment, origin_frame, sam_gap, points_per_side, max_obj_num):
-    if Segment is None:
-        Segment, _, _, _ = init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame)
+def segment_everything(Segment_in, origin_frame, sam_gap, points_per_side, max_obj_num):
+    if Segment_in is None:
+        Segment_in, _, _, _ = init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame)
 
     print("Segment Everything")
     frame_idx = 0
 
     with torch.cuda.amp.autocast():
-        pred_mask = Segment.seg(origin_frame)
+        pred_mask = Segment_in.seg(origin_frame)
         torch.cuda.empty_cache()
         gc.collect()
-        Segment.add_reference(origin_frame, pred_mask, frame_idx)
-        Segment.first_frame_mask = pred_mask
+        Segment_in.add_reference(origin_frame, pred_mask, frame_idx)
+        Segment_in.first_frame_mask = pred_mask
 
     masked_frame = draw_mask(origin_frame.copy(), pred_mask)
 
-    return Segment, masked_frame
+    return Segment_in, masked_frame
 
 def get_click_prompt(click_state, point):
     click_state[0].append(point["coords"])
@@ -85,21 +100,21 @@ def get_click_prompt(click_state, point):
 
     return prompt
 
-def seg_acc_click(Segment, prompt, origin_frame):
+def seg_acc_click(Segment_in, prompt, origin_frame):
     # Seg acc to click
-    predicted_mask, masked_frame = Segment.seg_acc_click(
+    predicted_mask, masked_frame = Segment_in.seg_acc_click(
                                                     origin_frame=origin_frame,
                                                     coords=np.array(prompt["point_coord"]),
                                                     modes=np.array(prompt["mode"],
                                                     multimask=prompt["multimask"])
                                                 )
 
-    Segment = Segment_add_first_frame(Segment, origin_mask, predicted_mask)
+    Segment_in = Segment_add_first_frame(Segment_in, origin_mask, predicted_mask)
     
     return masked_frame
 
 
-def sam_click(Segment, origin_frame, click_state, point_mode, sam_gap, max_obj_num, points_per_side):
+def sam_click(Segment_in, origin_frame, click_state, point_mode, sam_gap, max_obj_num, points_per_side, evt:gr.SelectData):
     """
     Args:
         origin_frame: np.ndarray
@@ -112,16 +127,16 @@ def sam_click(Segment, origin_frame, click_state, point_mode, sam_gap, max_obj_n
         # TODO: add everything positive points
         point = {"coords": [evt.index[0], evt.index[1]], "mode": 0}
 
-    if Segment is None:
-        Segment, _, _, _ = init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame)
+    if Segment_in is None:
+        Segment_in, _, _, _ = init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame)
 
     # get_click_prompt for sam to predict the mask
     click_prompt = get_click_prompt(click_state, point)
 
     # refine acc to prompt
-    masked_frame = seg_acc_click(Segment, click_prompt, origin_frame)
+    masked_frame = seg_acc_click(Segment_in, click_prompt, origin_frame)
 
-    return Segment, masked_frame, click_state
+    return Segment_in, masked_frame, click_state
 
 
 
@@ -143,7 +158,7 @@ def app():
         origin_img = gr.State(None)
         segment_img = gr.State(None)
         prompt_text = gr.State("")
-        Segment = gr.State(None)
+        Segment_in = gr.State(None)
 
         sam_gap = gr.State(None)
         points_per_side = gr.State(None)
@@ -270,36 +285,36 @@ def app():
         tab_everything.select(
             fn=init_Segment,
             inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
-            outputs=[Segment, segment_img, click_state, prompt_text],
+            outputs=[Segment_in, segment_img, click_state, prompt_text],
             queue=False
         )
 
         tab_click.select(
             fn=init_Segment,
             inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
-            outputs=[Segment, segment_img, click_state, prompt_text],
+            outputs=[Segment_in, segment_img, click_state, prompt_text],
             queue=False
         )
 
         tab_text.select(
             fn=init_Segment,
             inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
-            outputs=[Segment, segment_img, click_state, prompt_text],
+            outputs=[Segment_in, segment_img, click_state, prompt_text],
             queue=False
         )
 
         # Segment everything
         seg_every_button.click(
             fn=segment_everything,
-            inputs=[Segment, origin_img, sam_gap, points_per_side, max_obj_num],
-            outputs=[Segment, segment_img]
+            inputs=[Segment_in, origin_img, sam_gap, points_per_side, max_obj_num],
+            outputs=[Segment_in, segment_img]
         )
         
         # Segment with click to get mask
         segment_img.select(
             fn=sam_click,
-            inputs=[Segment, origin_img, point_mode, click_state, sam_gap, max_obj_num, points_per_side],
-            outputs=[Segment, segment_img, click_state]
+            inputs=[Segment_in, origin_img, point_mode, click_state, sam_gap, max_obj_num, points_per_side],
+            outputs=[Segment_in, segment_img, click_state]
         )
 
          
