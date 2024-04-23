@@ -17,7 +17,7 @@ from utils.model_args import sam_args, segment_args
 
 
 def clean():
-    return ([[],[]]), None, None, ""
+    return ([[],[]]), None, None, "", None
 
 def get_meta_from_img_seq(img):
     if img is None:
@@ -138,8 +138,16 @@ def sam_click(Segment_in, origin_frame, click_state, point_mode, sam_gap, max_ob
 
     return Segment_in, masked_frame, click_state
 
+def gd_detect(Segment, origin_frame, prompt_text, box_threshold, text_threshold, sam_gap, max_obj_num, points_per_side):
+    if Segment is None:
+        Segment, _, _, _ = init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame)
 
+    print("Detecting")
+    predicted_mask, annotated_frame = Segment_in.seg_and_dec(origin_frame, prompt_text, box_threshold, text_threshold)
 
+    masked_frame = draw_mask(annotated_frame, predicted_mask)
+
+    return Segment, masked_frame, origin_frame
 
 def app():
 
@@ -210,7 +218,7 @@ def app():
                             undo_text_button = gr.Button(label="Undo", interactive=True, value="undo")
 
                 with gr.Row():
-                    with gr.Accordion("Advance option", open=False):
+                    with gr.Accordion("Advance option", open=True):
                         # args for tracking in video do segment-everthing
                             points_per_side = gr.Slider(
                                 label = "points_per_side",
@@ -255,25 +263,27 @@ def app():
             outputs=[segment_img, origin_img, prompt_text]
         )
 
-        # clean the state
+        # --------Clean the state---------
         reset_button.click(
-            fn=clean,
-            inputs=[],
-            outputs=[click_state, origin_img, segment_img, prompt_text]
+            fn=init_Segment,
+            inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
+            outputs=[Segment_in, segment_img, click_state, prompt_text],
+            queue=False,
+            show_progress=False
         )
 
-        ## Undo button
-        every_undo_button.click(
-            fn=clean,
-            inputs=[],
-            outputs=[click_state, origin_img, segment_img, prompt_text]
-        )
-
-        # click_undo_button.click(
+        ## -------Undo button--------------
+        # every_undo_button.click(
         #     fn=clean,
         #     inputs=[],
         #     outputs=[click_state, origin_img, segment_img, prompt_text]
         # )
+
+        click_undo_button.click(
+            fn=clean,
+            inputs=[],
+            outputs=[click_state, origin_img, segment_img, prompt_text]
+        )
 
         undo_text_button.click(
             fn=clean,
@@ -281,7 +291,7 @@ def app():
             outputs=[click_state, origin_img, segment_img, prompt_text]
         )
 
-        # init the segment
+        # -------------init the segment----------------
         tab_everything.select(
             fn=init_Segment,
             inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
@@ -302,35 +312,29 @@ def app():
             outputs=[Segment_in, segment_img, click_state, prompt_text],
             queue=False
         )
-
+        
+        # --------SEGMENTATION---------------
         # Segment everything
         seg_every_button.click(
             fn=segment_everything,
             inputs=[Segment_in, origin_img, sam_gap, points_per_side, max_obj_num],
             outputs=[Segment_in, segment_img]
         )
-        
         # Segment with click to get mask
         segment_img.select(
             fn=sam_click,
             inputs=[Segment_in, origin_img, point_mode, click_state, sam_gap, max_obj_num, points_per_side],
             outputs=[Segment_in, segment_img, click_state]
         )
-
-         
-
-        
-
-    
-
-
-                        
+        # Segment with text prompt
+        seg_text_button.click(
+            fn=gd_detect,
+            inputs=[Segment_in, origin_img, prompt_text, box_threshold, text_threshold, sam_gap, max_obj_num, points_per_side],
+            outputs=[Segment_in, segment_img, origin_img]
+        )         
 
     app.queue(concurrency_count=1)
     app.launch(debug=True, enable_queue=True, share=True)
 
 if __name__ == "__main__":
     app()
-
-
-
