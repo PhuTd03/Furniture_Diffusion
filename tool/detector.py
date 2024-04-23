@@ -63,7 +63,7 @@ class Detector:
                 annotated_frame:nd.array
                 transfered_boxes: nd.array [N, 4]: [[x0, y0], [x1, y1]]
         '''
-        height, width, _ = origin_frame.shape
+        height, width, _ = origin_frame.size
         img_pil = PIL.Image.fromarray(origin_frame)
         re_width, re_height = img_pil.size
         _, image_tensor = self.image_transform_grounding(img_pil)
