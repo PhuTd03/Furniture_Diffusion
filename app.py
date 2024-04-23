@@ -68,7 +68,24 @@ def init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame):
 
 def undo_click_state_and_refine_seg(Segment_in, origin_frame, click_state, sam_gap, max_obj_num, points_per_side):
     if Segment_in is None:
-        return None, origin_frame, [[], []], ""
+        return None, origin_frame, [[], []]
+
+    print("Undo!")
+    if len(click_state[0]) > 0:
+        click_state[0] = click_state[0][: -1]
+        click_state[1] = click_state[1][: -1]
+
+    if len(click_state[0]) == 0:
+        prompt = {
+            "points_coord": click_state[0],
+            "points_mode": click_state[1],
+            "multimask": "True"
+        }
+
+        masked_frame = seg_acc_click(Segment_in, prompt, origin_frame)
+        return Segment_in, masked_frame, click_state
+    else:
+        return Segment_in, origin_frame, [[], []]
 
 def segment_everything(Segment_in, origin_frame, sam_gap, points_per_side, max_obj_num):
     if Segment_in is None:
@@ -138,16 +155,16 @@ def sam_click(Segment_in, origin_frame, click_state, point_mode, sam_gap, max_ob
 
     return Segment_in, masked_frame, click_state
 
-def gd_detect(Segment, origin_frame, prompt_text, box_threshold, text_threshold, sam_gap, max_obj_num, points_per_side):
-    if Segment is None:
-        Segment, _, _, _ = init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame)
+def gd_detect(Segment_in, origin_frame, prompt_text, box_threshold, text_threshold, sam_gap, max_obj_num, points_per_side):
+    if Segment_in is None:
+        Segment_in, _, _, _ = init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame)
 
     print("Detecting")
     predicted_mask, annotated_frame = Segment_in.seg_and_dec(origin_frame, prompt_text, box_threshold, text_threshold)
 
     masked_frame = draw_mask(annotated_frame, predicted_mask)
 
-    return Segment, masked_frame, origin_frame
+    return Segment_in, masked_frame, origin_frame
 
 def app():
 
@@ -190,7 +207,7 @@ def app():
                                 interactive=True
                             )
 
-                            every_undo_button = gr.Button(label="Undo", interactive=True, value="undo")
+                            undo_every_button = gr.Button(label="Undo", interactive=True, value="undo")
 
                 tab_click = gr.Tab(label="Click")
                 with tab_click:
@@ -201,7 +218,7 @@ def app():
                             value="Positive",
                             interactive=True
                         )
-                        click_undo_button = gr.Button(label="Undo", interactive=True, value="undo")
+                        undo_click_button = gr.Button(label="Undo", interactive=True, value="undo")
                 
                 tab_text = gr.Tab(label="Text")
                 with tab_text:
@@ -215,7 +232,7 @@ def app():
                                     text_threshold = gr.Slider(minimum=0, maximum=1, step=0.001, value=0.5, label="Text Threshold")
                         with gr.Column():
                             seg_text_button = gr.Button(label="Segmentation", interactive=True, value="segmentation")
-                            undo_text_button = gr.Button(label="Undo", interactive=True, value="undo")
+                            # undo_text_button = gr.Button(label="Undo", interactive=True, value="undo")
 
                 with gr.Row():
                     with gr.Accordion("Advance option", open=True):
@@ -272,24 +289,30 @@ def app():
             show_progress=False
         )
 
-        ## -------Undo button--------------
-        # every_undo_button.click(
+        # -------Undo button--------------
+        undo_every_button.click(
+            fn=undo_click_state_and_refine_seg,
+            inputs=[Segment_in, origin_img, click_state,
+            sam_gap,
+            max_obj_num,
+            points_per_side],
+            outputs=[Segment_in, origin_img, click_state]
+        )
+
+        undo_click_button.click(
+            fn=undo_click_state_and_refine_seg,
+            inputs=[Segment_in, origin_img, click_state,
+            sam_gap,
+            max_obj_num,
+            points_per_side],
+            outputs=[Segment_in, origin_img, click_state]
+        )
+
+        # undo_text_button.click(
         #     fn=clean,
         #     inputs=[],
         #     outputs=[click_state, origin_img, segment_img, prompt_text]
         # )
-
-        click_undo_button.click(
-            fn=clean,
-            inputs=[],
-            outputs=[click_state, origin_img, segment_img, prompt_text]
-        )
-
-        undo_text_button.click(
-            fn=clean,
-            inputs=[],
-            outputs=[click_state, origin_img, segment_img, prompt_text]
-        )
 
         # -------------init the segment----------------
         tab_everything.select(
