@@ -68,14 +68,14 @@ def init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame):
 
 def undo_click_state_and_refine_seg(Segment_in, origin_frame, click_state, sam_gap, max_obj_num, points_per_side):
     if Segment_in is None:
-        return None, origin_frame, [[], []]
+        return Segment, origin_frame, [[], []]
 
     print("Undo!")
     if len(click_state[0]) > 0:
         click_state[0] = click_state[0][: -1]
         click_state[1] = click_state[1][: -1]
 
-    if len(click_state[0]) == 0:
+    if len(click_state[0]) > 0:
         prompt = {
             "points_coord": click_state[0],
             "points_mode": click_state[1],
@@ -118,26 +118,26 @@ def get_click_prompt(click_state, point):
     return prompt
 
 def seg_acc_click(Segment_in, prompt, origin_frame):
-    # Seg acc to click
+    # Seg acc to click 
     predicted_mask, masked_frame = Segment_in.seg_acc_click(
                                                     origin_frame=origin_frame,
                                                     coords=np.array(prompt["point_coord"]),
-                                                    modes=np.array(prompt["mode"],
+                                                    modes=np.array(prompt["mode"]),
                                                     multimask=prompt["multimask"])
-                                                )
 
     Segment_in = Segment_add_first_frame(Segment_in, origin_mask, predicted_mask)
     
     return masked_frame
 
 
-def sam_click(Segment_in, origin_frame, click_state, point_mode, sam_gap, max_obj_num, points_per_side, evt:gr.SelectData):
+def sam_click(Segment_in, origin_frame, point_mode, click_state: list, sam_gap, max_obj_num, points_per_side, evt:gr.SelectData):
     """
     Args:
         origin_frame: np.ndarray
         click_state: [[coordinate], [point_mode]]
     """
     print("sam_click")
+    # import pdb; pdb.set_trace()
     if point_mode == "Positive":
         point = {"coords": [evt.index[0], evt.index[1]], "mode": 1}
     else:
