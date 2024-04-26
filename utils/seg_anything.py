@@ -2,6 +2,19 @@ import os
 import numpy as np
 import cv2
 from utils.model_args import segment_args, sam_args
+from scipy.ndimage import binary_dilation
+from PIL import Image
+
+np.random.seed(200)
+_palette = ((np.random.random((3*255))*0.7+0.3)*255).astype(np.uint8).tolist()
+_palette = [0,0,0]+_palette
+
+def colorize_mask(pred_mask):
+    save_mask = Image.fromarray(pred_mask.astype(np.uint8))
+    save_mask = save_mask.convert(mode='P')
+    save_mask.putpalette(_palette)
+    save_mask = save_mask.convert(mode='RGB')
+    return np.array(save_mask)
 
 def draw_mask(img, mask, alpha=0.5, id_countour=False):
     img_mask = np.zeros_like(img)
@@ -28,7 +41,8 @@ def draw_mask(img, mask, alpha=0.5, id_countour=False):
     else:
         binary_mask = (mask!=0)
         countours = binary_dilation(binary_mask,iterations=1) ^ binary_mask
-        foreground = img*(1-alpha)+colorize_mask(mask)*alpha
+        img_array = np.array(img)
+        foreground = img_array*(1-alpha)+colorize_mask(mask)*alpha
         img_mask[binary_mask] = foreground[binary_mask]
         img_mask[countours,:] = 0
         

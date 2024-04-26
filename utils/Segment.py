@@ -2,6 +2,7 @@ import sys
 sys.path.append("..")
 sys.path.append("./sam")
 from sam.segment_anything import sam_model_registry, SamAutomaticMaskGenerator
+from utils.seg_anything import draw_mask
 from tool.segmentor import Segmentor
 from tool.detector import Detector
 
