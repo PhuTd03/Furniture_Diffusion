@@ -7,10 +7,11 @@
 import numpy as np
 import torch
 from torch.nn import functional as F
-from torchvision.transforms.functional import resize, to_pil_image  # type: ignore
+from torchvision.transforms.functional import resize, to_pil_image, to_tensor  # type: ignore
 
 from copy import deepcopy
 from typing import Tuple
+import PIL
 
 
 class ResizeLongestSide:
@@ -27,7 +28,13 @@ class ResizeLongestSide:
         """
         Expects a numpy array with shape HxWxC in uint8 format.
         """
-        target_size = self.get_preprocess_shape(image.shape[0], image.shape[1], self.target_length)
+        width,height = image.size
+        target_size = self.get_preprocess_shape(height, width, self.target_length)
+        # If image is a PIL Image object, convert it to a tensor
+        if isinstance(image, PIL.Image.Image):
+            image = to_tensor(image)
+
+        # Now you can resize the image and convert it to a NumPy array
         return np.array(resize(to_pil_image(image), target_size))
 
     def apply_coords(self, coords: np.ndarray, original_size: Tuple[int, ...]) -> np.ndarray:

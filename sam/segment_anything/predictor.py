@@ -57,7 +57,9 @@ class SamPredictor:
         input_image_torch = torch.as_tensor(input_image, device=self.device)
         input_image_torch = input_image_torch.permute(2, 0, 1).contiguous()[None, :, :, :]
 
-        self.set_torch_image(input_image_torch, image.shape[:2])
+        # Get the width and height of the image
+        width, height = image.size
+        self.set_torch_image(input_image_torch, (height, width))
 
     @torch.no_grad()
     def set_torch_image(
