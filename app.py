@@ -22,7 +22,7 @@ def clean():
 def get_meta_from_img_seq(img):
     if img is None:
         print("Input image is None.")
-        return None, None, None, None, ""
+        return None, None, ""
 
     print("Getting meta information from image sequence.")
     try:
@@ -32,7 +32,7 @@ def get_meta_from_img_seq(img):
         print("Error loading image:", e)
         return None, None, "Error loading image."
 
-    return origin_img, origin_img, origin_img, origin_img, ""
+    return origin_img, origin_img, ""
 
 
 def Segment_add_first_frame(Segment_in, origin_frame, predicted_mask):
@@ -61,7 +61,7 @@ def init_Segment_all(sam_gap, points_per_side, max_obj_num, origin_frame):
     sam_args["generator_args"]["points_per_side"] = points_per_side
     segment_args["sam_gap"] = sam_gap
     segment_args["max_obj_num"] = max_obj_num
-    
+
     Segment_in = Segment(segment_args, sam_args)
 
     return Segment_in, origin_frame, origin_frame, origin_frame, [[], []], ""
@@ -195,11 +195,7 @@ def app():
 
         click_state = gr.State([[], []])
         origin_img = gr.State(None)
-        # segment_img = gr.State(None)
-        output_img = gr.State(None)
-        segment_img_ev = gr.State(None)
-        segment_img_cli = gr.State(None)
-        segment_img_te = gr.State(None)
+        segment_img = gr.State(None)
         prompt_text = gr.State("")
         Segment_in = gr.State(None)
 
@@ -215,48 +211,42 @@ def app():
                 # Segmentation Tab
                 tab_everything = gr.Tab(label="Everything")
                 with tab_everything:
-                    with gr.Column():
-                        segment_img_ev = gr.Image(label="Segmented Image", interactive=False)
-                        with gr.Row():
-                            seg_every_button = gr.Button(label="Segmentation", interactive=True, value="segment everything")
-                            with gr.Column():    
-                                point_mode = gr.Radio(
-                                    choices=["Positive"],
-                                    label="Point Prompt",
-                                    value="Positive",
-                                    interactive=True
-                                )
-
-                                undo_every_button = gr.Button(label="Undo", interactive=True, value="undo")
-
-                tab_click = gr.Tab(label="Click")
-                with tab_click:
-                    with gr.Column():
-                        segment_img_cli = gr.Image(label="Segmented Image", interactive=True)
-                        with gr.Row():
-                            click_mode = gr.Radio(
-                                choices=["Positive", "Negative"],
-                                label="Click Prompt",
+                    with gr.Row():
+                        seg_every_button = gr.Button(label="Segmentation", interactive=True, value="segment everything")
+                        with gr.Column():    
+                            point_mode = gr.Radio(
+                                choices=["Positive"],
+                                label="Point Prompt",
                                 value="Positive",
                                 interactive=True
                             )
-                            undo_click_button = gr.Button(label="Undo", interactive=True, value="undo")
+
+                            undo_every_button = gr.Button(label="Undo", interactive=True, value="undo")
+
+                tab_click = gr.Tab(label="Click")
+                with tab_click:
+                    with gr.Row():
+                        click_mode = gr.Radio(
+                            choices=["Positive", "Negative"],
+                            label="Click Prompt",
+                            value="Positive",
+                            interactive=True
+                        )
+                        undo_click_button = gr.Button(label="Undo", interactive=True, value="undo")
                 
                 tab_text = gr.Tab(label="Text")
                 with tab_text:
-                    with gr.Column():
-                        segment_img_te = gr.Image(label="Segmented Image", interactive=False)
-                        with gr.Row():
-                            prompt_text = gr.Textbox(label="prompt")
-                            with gr.Accordion("Advance option", open=False):
-                                with gr.Row():
-                                    with gr.Column(scale=0.5):
-                                        box_threshold = gr.Slider(minimum=0, maximum=1, step=0.001, value=0.5, label="Box Threshold")
-                                    with gr.Column(scale=0.5):
-                                        text_threshold = gr.Slider(minimum=0, maximum=1, step=0.001, value=0.5, label="Text Threshold")
-                            with gr.Column():
-                                seg_text_button = gr.Button(label="Segmentation", interactive=True, value="segmentation")
-                                # undo_text_button = gr.Button(label="Undo", interactive=True, value="undo")
+                    with gr.Row():
+                        prompt_text = gr.Textbox(label="prompt")
+                        with gr.Accordion("Advance option", open=False):
+                            with gr.Row():
+                                with gr.Column(scale=0.5):
+                                    box_threshold = gr.Slider(minimum=0, maximum=1, step=0.001, value=0.5, label="Box Threshold")
+                                with gr.Column(scale=0.5):
+                                    text_threshold = gr.Slider(minimum=0, maximum=1, step=0.001, value=0.5, label="Text Threshold")
+                        with gr.Column():
+                            seg_text_button = gr.Button(label="Segmentation", interactive=True, value="segmentation")
+                            # undo_text_button = gr.Button(label="Undo", interactive=True, value="undo")
 
                 with gr.Row():
                     with gr.Accordion("Advance option", open=True):
@@ -290,8 +280,7 @@ def app():
 
                     reset_button = gr.Button(label="Reset", interactive=True, value="reset")
 
-            output_img = gr.Image(label="Output Image", interactive=False, show_download_button=True)
-
+            segment_img = gr.Image(label="Segmented Image", interactive=True)
 
 
     #################
@@ -302,14 +291,14 @@ def app():
         input_img.change(
             fn=get_meta_from_img_seq,
             inputs=[input_img],
-            outputs=[segment_img_cli, segment_img_ev, segment_img_te, origin_img, prompt_text]
+            outputs=[segment_img, origin_img, prompt_text]
         )
 
         # --------Clean the state---------
         reset_button.click(
-            fn=init_Segment_all,
+            fn=init_Segment,
             inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
-            outputs=[Segment_in, segment_img_ev, segment_img_cli, segment_img_te, click_state, prompt_text],
+            outputs=[Segment_in, segment_img, click_state, prompt_text],
             queue=False,
             show_progress=False
         )
@@ -343,21 +332,21 @@ def app():
         tab_everything.select(
             fn=init_Segment,
             inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
-            outputs=[Segment_in, segment_img_ev, click_state, prompt_text],
+            outputs=[Segment_in, segment_img, click_state, prompt_text],
             queue=False
         )
 
         tab_click.select(
             fn=init_Segment,
             inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
-            outputs=[Segment_in, segment_img_cli, click_state, prompt_text],
+            outputs=[Segment_in, segment_img, click_state, prompt_text],
             queue=False
         )
 
         tab_text.select(
             fn=init_Segment,
             inputs=[sam_gap, points_per_side, max_obj_num, origin_img],
-            outputs=[Segment_in, segment_img_te, click_state, prompt_text],
+            outputs=[Segment_in, segment_img, click_state, prompt_text],
             queue=False
         )
         
@@ -366,19 +355,19 @@ def app():
         seg_every_button.click(
             fn=segment_everything,
             inputs=[Segment_in, origin_img, sam_gap, points_per_side, max_obj_num],
-            outputs=[Segment_in, segment_img_ev]
+            outputs=[Segment_in, segment_img]
         )
         # Segment with click to get mask
-        segment_img_cli.select(
+        segment_img.select(
             fn=sam_click,
             inputs=[Segment_in, origin_img, point_mode, click_state, sam_gap, max_obj_num, points_per_side],
-            outputs=[Segment_in, segment_img_cli, click_state]
+            outputs=[Segment_in, segment_img, click_state]
         )
         # Segment with text prompt
         seg_text_button.click(
             fn=gd_detect,
             inputs=[Segment_in, origin_img, prompt_text, box_threshold, text_threshold, sam_gap, max_obj_num, points_per_side],
-            outputs=[Segment_in, segment_img_te, origin_img]
+            outputs=[Segment_in, segment_img, origin_img]
         )         
 
     app.queue(concurrency_count=1)
