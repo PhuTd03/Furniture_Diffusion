@@ -39,7 +39,7 @@ def Segment_add_first_frame(Segment_in, origin_frame, predicted_mask):
     with torch.cuda.amp.autocast():
         # Reset first frame's mask
         frame_idx = 0
-        Segment_in.restart_tracker()
+        # Segment_in.restart_tracker()
         Segment_in.add_reference(origin_frame, predicted_mask, frame_idx)
         Segment_in.first_frame_mask = predicted_mask
     
@@ -91,8 +91,8 @@ def undo_click_state_and_refine_seg(Segment_in, origin_frame, click_state, sam_g
 
     if len(click_state[0]) > 0:
         prompt = {
-            "points_coord": click_state[0],
-            "points_mode": click_state[1],
+            "point_coord": click_state[0],
+            "mode": click_state[1],
             "multimask": "True"
         }
 
@@ -310,7 +310,7 @@ def app():
             sam_gap,
             max_obj_num,
             points_per_side],
-            outputs=[Segment_in, origin_img, click_state]
+            outputs=[Segment_in, segment_img, click_state]
         )
 
         undo_click_button.click(
@@ -319,7 +319,7 @@ def app():
             sam_gap,
             max_obj_num,
             points_per_side],
-            outputs=[Segment_in, origin_img, click_state]
+            outputs=[Segment_in, segment_img, click_state]
         )
 
         # undo_text_button.click(
