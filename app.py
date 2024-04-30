@@ -139,7 +139,7 @@ def seg_acc_click(Segment_in, prompt, origin_frame):
                                                     modes=np.array(prompt["mode"]),
                                                     multimask=prompt["multimask"])
 
-    Segment_in = Segment_add_first_frame(Segment_in, origin_mask, predicted_mask)
+    Segment_in = Segment_add_first_frame(Segment_in, origin_frame, predicted_mask)
     
     return masked_frame
 
