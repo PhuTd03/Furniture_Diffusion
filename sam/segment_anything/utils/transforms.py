@@ -28,8 +28,16 @@ class ResizeLongestSide:
         """
         Expects a numpy array with shape HxWxC in uint8 format.
         """
-        width,height = image.size
+        # If image is a PIL Image object
+        if isinstance(image, PIL.Image.Image):
+            width, height = image.size
+            image = np.array(image)
+        # If image is a numpy array
+        else:
+            height, width = image.shape[:2]
+            
         target_size = self.get_preprocess_shape(height, width, self.target_length)
+
         # If image is a PIL Image object, convert it to a tensor
         if isinstance(image, PIL.Image.Image):
             image = to_tensor(image)

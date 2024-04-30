@@ -6,6 +6,7 @@
 
 import numpy as np
 import torch
+import PIL
 
 from segment_anything.modeling import Sam
 
@@ -58,7 +59,13 @@ class SamPredictor:
         input_image_torch = input_image_torch.permute(2, 0, 1).contiguous()[None, :, :, :]
 
         # Get the width and height of the image
-        width, height = image.size
+        # If image is a PIL Image object
+        if isinstance(image, PIL.Image.Image):
+            width, height = image.size
+            image = np.array(image)
+        # If image is a numpy array
+        else:
+            height, width = image.shape[:2]
         self.set_torch_image(input_image_torch, (height, width))
 
     @torch.no_grad()
