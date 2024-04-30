@@ -5,6 +5,7 @@ from sam.segment_anything import sam_model_registry, SamAutomaticMaskGenerator
 from utils.seg_anything import draw_mask
 from tool.segmentor import Segmentor
 from tool.detector import Detector
+from tool.transfer_tools import draw_points, draw_outline
 
 import numpy as np
 
@@ -101,7 +102,16 @@ class Segment():
 
         return refined_merged_mask, masked_frame
 
-
+    def add_reference(self,frame,mask,frame_step=0):
+        '''
+        Add objects in a mask for tracking.
+        Arguments:
+            frame: numpy array (h,w,3)
+            mask: numpy array (h,w)
+        '''
+        self.reference_objs_list.append(np.unique(mask))
+        self.curr_idx = self.get_obj_num()
+        # self.tracker.add_reference_frame(frame,mask, self.curr_idx, frame_step)
 
     def seg_acc_click(self, origin_frame: np.ndarray, coords: np.ndarray, modes: np.ndarray, multimask=True):
         '''
@@ -120,7 +130,8 @@ class Segment():
         refined_merged_mask = self.add_mask(interactive_mask)
 
         # draw mask
-        masked_frame = draw_mask(origin_frame.copy(), refined_merged_mask)
+        origin_frame_np = np.array(origin_frame)
+        masked_frame = draw_mask(origin_frame_np.copy(), refined_merged_mask)
 
         # draw points
         # self.everything_labels = np.array(self.everything_labels).astype(np.int64)
@@ -175,6 +186,19 @@ class Segment():
         self.reset_origin_merged_mask(bc_mask, bc_id)
 
         return refined_merged_mask, annotated_frame
+
+    def get_tracking_objs(self):
+        objs = set()
+        for ref in self.reference_objs_list:
+            objs.update(set(ref))
+        objs = list(sorted(list(objs)))
+        objs = [i for i in objs if i!=0]
+        return objs
+    
+    def get_obj_num(self):
+        objs = self.get_tracking_objs()
+        if len(objs) == 0: return 0
+        return int(max(objs))
 
 if __name__ == "__main__":
     from model_args import segment_args, sam_args

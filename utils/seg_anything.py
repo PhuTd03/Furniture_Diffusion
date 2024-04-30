@@ -41,8 +41,7 @@ def draw_mask(img, mask, alpha=0.5, id_countour=False):
     else:
         binary_mask = (mask!=0)
         countours = binary_dilation(binary_mask,iterations=1) ^ binary_mask
-        img_array = np.array(img)
-        foreground = img_array*(1-alpha)+colorize_mask(mask)*alpha
+        foreground = img*(1-alpha)+colorize_mask(mask)*alpha
         img_mask[binary_mask] = foreground[binary_mask]
         img_mask[countours,:] = 0
         
