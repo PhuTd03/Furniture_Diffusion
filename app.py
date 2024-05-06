@@ -52,20 +52,6 @@ def create_placeholder_image():
     placeholder = Image.fromarray(placeholder)
     return placeholder
 
-def init_Segment_all(sam_gap, points_per_side, max_obj_num, origin_frame):
-    if origin_frame is None:
-        placeholder = create_placeholder_image()
-        return placeholder, origin_frame, [[], []], ""
-
-    # reset sam args
-    sam_args["generator_args"]["points_per_side"] = points_per_side
-    segment_args["sam_gap"] = sam_gap
-    segment_args["max_obj_num"] = max_obj_num
-
-    Segment_in = Segment(segment_args, sam_args)
-
-    return Segment_in, origin_frame, origin_frame, origin_frame, [[], []], ""
-
 def init_Segment(sam_gap, points_per_side, max_obj_num, origin_frame):
     if origin_frame is None:
         placeholder = create_placeholder_image()
@@ -196,6 +182,8 @@ def app():
         click_state = gr.State([[], []])
         origin_img = gr.State(None)
         segment_img = gr.State(None)
+        output_img = gr.State(None)
+
         prompt_text = gr.State("")
         Segment_in = gr.State(None)
 
@@ -207,6 +195,7 @@ def app():
             with gr.Column():
                 #input image
                 input_img = gr.Image(type="filepath", label="Input Image")
+                segment_img = gr.Image(label="Segmented Image", interactive=True).style(height=550)
 
                 # Segmentation Tab
                 tab_everything = gr.Tab(label="Everything")
@@ -280,7 +269,7 @@ def app():
 
                     reset_button = gr.Button(label="Reset", interactive=True, value="reset")
 
-            segment_img = gr.Image(label="Segmented Image", interactive=True)
+            output_img = gr.Image(label="Output Image", interactive=False, show_download_button=True).style(height=550)
 
 
     #################
