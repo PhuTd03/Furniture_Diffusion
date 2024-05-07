@@ -10,11 +10,25 @@ import json
 import sys
 import cv2
 import gc
+import argparse
+import diffusers
 
 from utils.Segment import Segment
 from utils.seg_anything import draw_mask
 from utils.model_args import sam_args, segment_args
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Parser for Furniture Diffusion")
+
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        help="Model path",
+    )
+
+    args = parser.parse_args()
+
+    return args
 
 def clean():
     return ([[],[]]), None, None, "", None
@@ -165,6 +179,8 @@ def gd_detect(Segment_in, origin_frame, prompt_text, box_threshold, text_thresho
     masked_frame = draw_mask(annotated_frame, predicted_mask)
 
     return Segment_in, masked_frame, origin_frame
+
+
 
 def app():
 
